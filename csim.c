@@ -255,11 +255,19 @@ int main(int argc, char *argv[])
 		{
 			instruction[i-3] = line[i];
 		}
-		instruction[i] = '\0';
-		int sizeOfThisInst = strlen(instruction)/2;
+		instruction[i] = '\0'; //null terminator at end of instruction string.
+		int sizeOfThisInst = 0;
+		if((strlen(instruction) & 0x1) == 1)
+		{
+			sizeOfThisInst = (strlen(instruction)+1)/2;
+		}
+		else
+		{
+			sizeOfThisInst = strlen(instruction)/2;
+		}
 		unsigned long inst = strtoul(instruction, NULL, 16);
 		//printf("THE lovely unsigned instruction is %x, instruction[2] is %c", inst, instruction[2]);
-		if(verboseFlag){printf(" %c %x,%d ", line[1], inst, sizeOfThisInst);}
+		if(verboseFlag){printf("%c %lx,%d ", line[1], inst, sizeOfThisInst);}
 		//printf("\n-instruction is %s\n-", instruction);
 		while(runs > 0)
 		{
@@ -287,8 +295,8 @@ int main(int argc, char *argv[])
 
 void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * hit_count, int * miss_count, int * eviction_count, int * verbose)
 {
-	printf("the set is %lu, the tag is %lu.", set, tag);
-	printCache(ccc);
+	//printf("the set is %lu, the tag is %lu.", set, tag);
+	//printCache(ccc);
 	if(set > (ccc.S-1))
 	{
 		printf("\nreorder set out of bounds, with %d sets, you can access 0-%d, not %lu\nExiting...\n", ccc.S, ccc.S-1, set);
@@ -331,10 +339,10 @@ int movedown(struct Cache ccc, int set)
 		printf("\nmovedown set out of bounds, with %d sets, you can access 0-%d, not %d\nExiting...\n", ccc.S, ccc.S-1, set);
 		exit(EXIT_FAILURE);
 	}
-	printf(" movedown(ccc, %d)", set);
+	//printf(" movedown(ccc, %d)", set);
 	int eviction = 0;
-	int linesPerSet = ccc.E;
-	unsigned long **tags = ccc.tags;
+	//int linesPerSet = ccc.E;
+	//unsigned long **tags = ccc.tags;
 	//int starter = 0;
 	//int temp0 = tags[set][0];
 	//unsigned long writeMe = 0;
