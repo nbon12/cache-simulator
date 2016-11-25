@@ -1,10 +1,11 @@
 #include "cachelab.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h> //to parse command line.
-#include <ctype.h>
-
+#include <getopt.h>
+#include <errno.h>
 struct Cache {
 	int S;			//numbers of sets
 	int s; 			// # of set index bits
@@ -18,7 +19,7 @@ void allocCache(struct Cache ccc, int numSets, int linesPerSet);//TODO: will all
 void printCache(struct Cache ccc);
 unsigned long gettag(unsigned long nexti, struct Cache ccc);
 unsigned long getBits(unsigned low, unsigned high, unsigned long source);
-void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * miss_count, int * eviction_count, int * hit_count);
+void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * miss_count, int * eviction_count, int * hit_count, int * verbose);
 int inst_s(struct Cache ccc, unsigned long nexti);
 int inst_b(struct Cache ccc, unsigned long nexti);
 int main(int argc, char *argv[])
@@ -31,6 +32,12 @@ int main(int argc, char *argv[])
     int hit_count = 0;
     int miss_count = 0;
     int eviction_count = 0;
+	char filename[256];
+	//char name[10] = "123456789";
+	//strncpy(filename, name, strlen(name));
+	//printf("@nameeeeeeeeeeeeeeeeee, %s", name);
+	//printf("filenameeeeeeeeeeeeeeeeee, %s", filename);
+
     //GET S, s, E, B, and B in between here...----------------------------
     //ccc.S = S(command line)
     //ccc.s = s(command line)
@@ -38,9 +45,9 @@ int main(int argc, char *argv[])
     //ccc.B = B(command line)
     //ccc.b = b(command line)
     //Temporary:
-    int s = 2;
-    int sets = 4;//set this from the args array
-	int linesPerSet = 2;
+    int s = 4;
+    int sets = 16;//set this from the args array
+	int linesPerSet = 1;
 	int blockbits = 4; //2>>blockbits = blocksize;
 	int blocksize = 2 << (blockbits-1);
 	// End Temporary
@@ -50,7 +57,68 @@ int main(int argc, char *argv[])
 	ccc.B = blocksize;
 	ccc.b = blockbits;
 	//and here...
-	int bool = 0;
+	//int bool = 0;
+	
+	int aflag = 0;
+  //int bflag = 0;
+  //char *cvalue = NULL;
+  //int index;
+  int c;
+ int verbose = 0;
+  opterr = 0;
+  while ((c = getopt (argc, argv, "s:E:ab:c:t:v")) != -1)
+    switch (c)
+      {
+      case 'a':
+        aflag = 1;
+        break;
+      case 'b':
+        //bflag = optarg;
+		ccc.b = atoi(optarg);
+		ccc.B = 2 << (ccc.b-1);
+        break;
+      case 'c':
+        //cvalue = (int)(atoi(optarg));
+        break;
+	  case 's':
+        //cvalue = optarg;
+		//printf("OPTARG 's' ISSSSS: %d", optarg);
+		ccc.s = atoi(optarg);
+		ccc.S = 2<<(ccc.s-1);
+        break;
+	  case 'E':
+        //cvalue = optarg;
+		ccc.E = atoi(optarg);
+        break;
+	  case 't':
+        //cvalue = optarg;
+		strncpy(filename, optarg, strlen(optarg));
+		filename[strlen(optarg)] = '\0';
+		//filename = optarg;
+        break;
+	  case'v':
+		verbose = 1;
+	  break;
+      case '?':
+        if (optopt == 'b')
+          fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+        else if (isprint (optopt))
+          fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+        else
+          fprintf (stderr,
+                   "Unknown option character `\\x%x'.\n",
+                   optopt);
+        return 1;
+      default:
+        abort ();
+      }
+	  
+  //printf ("aflag = %d, bflag = %d, cvalue = %s\n",
+   //       aflag, bflag, cvalue);
+	//printf("\n\n------the -s arg is: %d\n\n", ccc.s );
+  //for (index = optind; index < argc; index++)
+    //printf ("Non-option argument %s\n", argv[index]);
+	//------------------------------------------------------------------------------
 	/*
   	for (int i = 1; i < argc; i++)
 	{
@@ -79,6 +147,8 @@ int main(int argc, char *argv[])
 		//tags[i][0+1] = happy2;
 		//printf("SNAPPY: %lu", tags[i][0+1]);
 	}
+	
+	//Initialize all lines in cache to -1
     for(int i = 0; i < sets; i++){
       	//printf("\nset %d[", i);
 		for(int j = 0; j < linesPerSet; j++){
@@ -88,26 +158,21 @@ int main(int argc, char *argv[])
         }
 		//printf("]");
     }
-    //unsigned long nextInstruction = getNextInstruction();
-    unsigned long nexti = 0x10;
-    //unsigned long nexti = 0xff;
+    //----tests
+	/*
+		unsigned long nexti = 0x10;
     
-    
-	//printf("The tag of %x is %lu where s=%d b=%d and ", nexti, next_tag, ccc.s, ccc.b);
-    //unsigned long next_set = inst_s(ccc, nexti);
-    
-// printf("\nnext_set=%lu", next_set);
-    //while(//there is another instruction)
-    //{
     	unsigned long next_tag = gettag(nexti, ccc);
     	unsigned long next_set = inst_s(ccc, nexti);
 		reorder(ccc, next_set, next_tag, &hit_count, &miss_count, &eviction_count);
-    //}
-    //----tests
+    
+    
     	nexti=0x20;
     	next_tag = gettag(nexti, ccc);
     	next_set = inst_s(ccc, nexti);
 		reorder(ccc, next_set, next_tag, &hit_count, &miss_count, &eviction_count);
+		
+		
 		nexti=0x20;
     	next_tag = gettag(nexti, ccc);
     	next_set = inst_s(ccc, nexti);
@@ -138,31 +203,82 @@ int main(int argc, char *argv[])
     	next_tag = gettag(nexti, ccc);
     	next_set = inst_s(ccc, nexti);
 		reorder(ccc, next_set, next_tag, &hit_count, &miss_count, &eviction_count);
-    	nexti=0x12;
+    	
+		nexti=0x12;
     	next_tag = gettag(nexti, ccc);
     	next_set = inst_s(ccc, nexti);
 		reorder(ccc, next_set, next_tag, &hit_count, &miss_count, &eviction_count);
+		*/
+    //begin read file.
+	
+	FILE *fp;
+	fp = NULL;
+	//truncate filename to chop off the end.
+
+	fp = fopen(filename, "r");
+	if(!fp)
+	{
+		printf("\nFailed to open %s, %s\n", filename, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	char line[256];
+	while(fgets(line, sizeof(line), fp))
+	{
+		//printf("\n Filename %s line is %s", filename, line);
+		//printf("The letter is %c", line[1]);
+		//char type = line[1];
+		char instruction[256];
+		int runs = 0;
+		switch(line[1])
+		{
+			case ' ':
+				//ignore 'I' with whitespace after.
+				runs = 0;
+				break;
+			case 'M':
+				//run this instruction twice.
+				runs = 2;
+				break;
+			case 'L':
+			case 'S':
+				//run this instruction once.
+				runs = 1;
+				break;
+			default:
+				runs = 0;
+		}
+		//printf("runs is %d", runs);
+		for(int i = 3; line[i] != ','; i++ )
+		{
+			instruction[i-3] = line[i];
+		}
+		unsigned long inst = strtoul(instruction, NULL, 16);
+		//printf("THE lovely unsigned instruction is %x, instruction[2] is %c", inst, instruction[2]);
+		
+		while(runs > 0)
+		{
+			unsigned long nexti = inst;
     
-    	
+			unsigned long next_tag = gettag(nexti, ccc);
+			unsigned long next_set = inst_s(ccc, nexti);
+			reorder(ccc, next_set, next_tag, &hit_count, &miss_count, &eviction_count, &verbose);
+			runs--;
+		}
+		//clean the instruction string.
+		memset(instruction, 0, sizeof(instruction));
+	}
+	if(fclose(fp))
+	{
+		printf("failed to close %s", filename);
+	}
+	//end read file
     //---endtests
-    //unsigned long tag = gettag(nexti);
-    //ccc.tags = tags;
-    //printf("Ttags[0][0] = %d\n", ttags[0][0]);
-    //ccc.S = 4;
-    //eviction_count += movedown(ccc, 3);
-    printCache(ccc);
-    //movedown(ccc, 1);
-    //printSummary(0, 0, 0);
-    //int sets = 4;//set this from the args array
-	//int linesPerSet = 2;
-	//int blockbits = 4; //2>>blockbits = blocksize;
-	//int blocksize = 2 << (blockbits-1);
+    //printCache(ccc);
     printSummary(hit_count, miss_count, eviction_count);
-    printf("\nnext_tag=%lu", next_tag);
-    printf("\nnext_set=%lu", next_set);
     return 0;
 }
-void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * hit_count, int * miss_count, int * eviction_count)
+
+void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * hit_count, int * miss_count, int * eviction_count, int * verbose)
 {
 	if(set > (ccc.S-1))
 	{
@@ -323,3 +439,6 @@ unsigned long getBits(unsigned low, unsigned high, unsigned long source)
     
     return result;
 }
+		
+		
+		
