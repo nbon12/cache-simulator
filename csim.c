@@ -22,13 +22,14 @@ unsigned long getBits(unsigned low, unsigned high, unsigned long source);
 void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * miss_count, int * eviction_count, int * hit_count, int * verbose);
 int inst_s(struct Cache ccc, unsigned long nexti);
 int inst_b(struct Cache ccc, unsigned long nexti);
+int verboseFlag = 0;
 int main(int argc, char *argv[])
 {
     													//unsigned long hello = 5;
     													//hello = sizeof(unsigned long);
     													//printf("HELLO: %lu", hello);
     struct Cache ccc;
-    unsigned long **tags;
+    //unsigned long **tags;
     int hit_count = 0;
     int miss_count = 0;
     int eviction_count = 0;
@@ -97,6 +98,7 @@ int main(int argc, char *argv[])
 		//filename = optarg;
         break;
 	  case'v':
+		verboseFlag = 1;
 		verbose = 1;
 	  break;
       case '?':
@@ -149,9 +151,9 @@ int main(int argc, char *argv[])
 	}
 	
 	//Initialize all lines in cache to -1
-    for(int i = 0; i < sets; i++){
+    for(int i = 0; i < ccc.S; i++){
       	//printf("\nset %d[", i);
-		for(int j = 0; j < linesPerSet; j++){
+		for(int j = 0; j < ccc.E; j++){
       			unsigned long storeme = -1;
       			ccc.tags[i][j] = storeme;
 				//printf("line %d: %lu, ", j, tags[i][j]);
@@ -248,13 +250,17 @@ int main(int argc, char *argv[])
 				runs = 0;
 		}
 		//printf("runs is %d", runs);
-		for(int i = 3; line[i] != ','; i++ )
+		int i = 3;
+		for(; line[i] != ','; i++ )
 		{
 			instruction[i-3] = line[i];
 		}
+		instruction[i] = '\0';
+		int sizeOfThisInst = strlen(instruction)/2;
 		unsigned long inst = strtoul(instruction, NULL, 16);
 		//printf("THE lovely unsigned instruction is %x, instruction[2] is %c", inst, instruction[2]);
-		
+		if(verboseFlag){printf(" %c %x,%d ", line[1], inst, sizeOfThisInst);}
+		//printf("\n-instruction is %s\n-", instruction);
 		while(runs > 0)
 		{
 			unsigned long nexti = inst;
@@ -264,6 +270,7 @@ int main(int argc, char *argv[])
 			reorder(ccc, next_set, next_tag, &hit_count, &miss_count, &eviction_count, &verbose);
 			runs--;
 		}
+		if(verboseFlag){printf("\n");}
 		//clean the instruction string.
 		memset(instruction, 0, sizeof(instruction));
 	}
@@ -280,6 +287,8 @@ int main(int argc, char *argv[])
 
 void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * hit_count, int * miss_count, int * eviction_count, int * verbose)
 {
+	printf("the set is %lu, the tag is %lu.", set, tag);
+	printCache(ccc);
 	if(set > (ccc.S-1))
 	{
 		printf("\nreorder set out of bounds, with %d sets, you can access 0-%d, not %lu\nExiting...\n", ccc.S, ccc.S-1, set);
@@ -291,9 +300,10 @@ void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * hit_c
 	{
 		if(ccc.tags[set][i] == tag)//if this line is our tag then its a hit
 		{
-			printf("HIT. LINE:%d, THE TAG THAT WAS HERE WAS %lu", i, ccc.tags[set][i]);
+			//printf("HIT. LINE:%d, THE TAG THAT WAS HERE WAS %lu", i, ccc.tags[set][i]);
 			lineOfTag = i;			//remember line index.
 			(*hit_count)++;
+			if(verboseFlag){printf("hit");}
 		}
 	}
 	if(lineOfTag != -1)//if it was a hit, reorder so that MOST RECENTLY USED is at tags[set][0]...
@@ -308,6 +318,7 @@ void reorder(struct Cache ccc, unsigned long set, unsigned long tag, int * hit_c
 	{
 		
 		(*miss_count)++;
+		if(verboseFlag){printf("miss ");}
 		(*eviction_count) = (*eviction_count) + movedown(ccc, set);
 		ccc.tags[set][0] = tag;
 		//insert it into cache.
@@ -320,22 +331,24 @@ int movedown(struct Cache ccc, int set)
 		printf("\nmovedown set out of bounds, with %d sets, you can access 0-%d, not %d\nExiting...\n", ccc.S, ccc.S-1, set);
 		exit(EXIT_FAILURE);
 	}
+	printf(" movedown(ccc, %d)", set);
 	int eviction = 0;
 	int linesPerSet = ccc.E;
 	unsigned long **tags = ccc.tags;
 	//int starter = 0;
 	//int temp0 = tags[set][0];
-	unsigned long writeMe = 0;
-	unsigned long temp = tags[set][0];
-	unsigned long temp2 = 0;
+	//unsigned long writeMe = 0;
+	//unsigned long temp = tags[set][0];
+	//unsigned long temp2 = 0;
 	//check for eviction first...
-	printf("ccc.tags[set][ccc.E-1]=%lu", ccc.tags[set][ccc.E-1]);
+	//printf("ccc.tags[set][ccc.E-1]=%lu", ccc.tags[set][ccc.E-1]);
 	if(ccc.tags[set][ccc.E-1] != -1)
 	{
 		eviction = 1;
-		//printf("E-E-EVICTION");
+		if(verboseFlag){printf("eviction ");}
 	}
-	tags[set][0] = writeMe;
+	//tags[set][0] = writeMe;
+	/*
 	for(int j = 1; j < linesPerSet-1; j++)
 	{
 		temp2 = tags[set][j];
@@ -347,6 +360,13 @@ int movedown(struct Cache ccc, int set)
 		{
 			tags[set][j] = temp2;
 		}
+	}*/
+	
+	//evict the last guy.
+	//start from the last, and pull everything over
+	for(int j = ccc.E-1; j > 0; j--)
+	{
+		ccc.tags[set][j] = ccc.tags[set][j-1];
 	}
 	return eviction;
 }
